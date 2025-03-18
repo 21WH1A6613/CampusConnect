@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel - Campus Connect</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .admin-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .admin-section {
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .faculty-list {
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f5f5f5;
+        }
+
+        .upload-section {
+            margin: 20px 0;
+        }
+
+        .action-buttons button {
+            margin-right: 10px;
+        }
+
+        .schedule-filters {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .schedule-filters select {
+            padding: 5px;
+            min-width: 150px;
+        }
+
+        .btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+        }
+
+        .btn-edit {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        .btn-restore {
+            background-color: #28a745;
+        }
+
+        .status-busy {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .status-available {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 500px;
+        }
+
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        .temporary-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #uploadStatus {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 500px;
+            margin: 50px auto;
+            position: relative;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .schedule-list {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .schedule-list h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+
+        .schedule-list ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .schedule-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+
+        .mt-3 {
+            margin-top: 1rem;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+            margin-left: 10px;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container admin-container">
+        <h1>Admin Panel</h1>
+        
+        <!-- Manual Add Faculty Section -->
+        <div class="admin-section">
+            <h2>Add New Faculty</h2>
+            <form id="addFacultyForm" onsubmit="return addFaculty(event)">
+                <input type="text" name="faculty_name" placeholder="Faculty Name" required>
+                <button type="submit">Add Faculty</button>
+            </form>
+        </div>
+
+        <!-- Bulk Upload Section -->
+        <div class="admin-section">
+            <h2>Bulk Upload Faculty Schedules</h2>
+            <form id="bulkUploadForm" onsubmit="return uploadCSV(event)">
+                <div class="form-group">
+                    <label for="csvFile">Select CSV File:</label>
+                    <input type="file" id="csvFile" name="file" accept=".csv" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload CSV</button>
+            </form>
+            <div class="mt-3">
+            <small>CSV Format: name,day,start_time,end_time,room</small>
+                <button onclick="downloadSampleCSV()" class="btn btn-secondary mt-2">Download Sample CSV</button>
+            </div>
+            <div id="uploadStatus" class="mt-3"></div>
+        </div>
+
+        <!-- Add Schedule Section -->
+        <div class="admin-section">
+            <h2>Add Faculty Schedule</h2>
+            <form id="scheduleForm" onsubmit="return addSchedule(event)">
+                <select name="faculty" id="facultySelect" required>
+                    <option value="">Select Faculty</option>
+                </select>
+                
+                <select name="day" required>
+                    <option value="">Select Day</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                </select>
+                
+                <input type="time" name="start_time" required>
+                <input type="time" name="end_time" required>
+                <input type="text" name="room" placeholder="Room Number" required>
+                
+                <div class="temporary-checkbox">
+                    <input type="checkbox" name="is_temporary" id="isTemporary">
+                    <label for="isTemporary">Temporary Change</label>
+                </div>
+                
+                <div id="validUntil" style="display: none;">
+                    <input type="date" name="valid_until">
+                </div>
+                
+                <button type="submit">Add Schedule</button>
+            </form>
+        </div>
+
+        <!-- View/Edit Schedules Section -->
+        <div class="admin-section">
+            <h2>Current Schedules</h2>
+            <div class="schedule-filters">
+                <select id="filterFaculty" onchange="filterSchedules()">
+                    <option value="">All Faculty</option>
+                </select>
+                <select id="filterDay" onchange="filterSchedules()">
+                    <option value="">All Days</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                </select>
+            </div>
+            <table id="scheduleTable">
+                <thead>
+                    <tr>
+                        <th>Faculty</th>
+                        <th>Day</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Room</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Deleted Schedules Section -->
+        <div class="admin-section">
+            <h2>Deleted Schedules</h2>
+            <table id="deletedSchedulesTable">
+                <thead>
+                    <tr>
+                        <th>Faculty</th>
+                        <th>Day</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Room</th>
+                        <th>Deleted At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Edit Schedule Modal -->
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" onclick="closeEditModal()">&times;</span>
+                <h2>Edit Schedule</h2>
+                <form id="editScheduleForm" onsubmit="return updateSchedule(event)">
+                    <input type="hidden" name="schedule_id" id="editScheduleId">
+                    <select name="faculty" id="editFacultySelect" required>
+                        <option value="">Select Faculty</option>
+                    </select>
+                    
+                    <select name="day" id="editDay" required>
+                        <option value="">Select Day</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                    </select>
+                    
+                    <input type="time" name="start_time" id="editStartTime" required>
+                    <input type="time" name="end_time" id="editEndTime" required>
+                    <input type="text" name="room" id="editRoom" placeholder="Room Number" required>
+                    
+                    <div class="temporary-checkbox">
+                        <input type="checkbox" name="is_temporary" id="editIsTemporary">
+                        <label for="editIsTemporary">Temporary Change</label>
+                    </div>
+                    
+                    <div id="editValidUntil" style="display: none;">
+                        <input type="date" name="valid_until" id="editValidUntilDate">
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <button type="submit" class="btn" style="background-color: #007bff;">Save Changes</button>
+                        <button type="button" class="btn" style="background-color: #6c757d;" onclick="closeEditModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add this search form in your admin_panel.html -->
+        <div class="admin-section">
+            <h2>Search Faculty Schedule</h2>
+            <form id="searchForm" onsubmit="return searchFaculty(event)">
+                <div class="form-group">
+                    <label for="searchFacultySelect">Select Faculty:</label>
+                    <select name="faculty_name" id="searchFacultySelect" required>
+                        <option value="">Select Faculty</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="searchDay">Select Day:</label>
+                    <select name="day" id="searchDay" required>
+                        <option value="">Select Day</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="searchStartTime">Start Time:</label>
+                    <input type="time" id="searchStartTime" name="start_time" required>
+                </div>
+                <div class="form-group">
+                    <label for="searchEndTime">End Time:</label>
+                    <input type="time" id="searchEndTime" name="end_time" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </form>
+            <div id="searchResults" class="mt-3"></div>
+        </div>
+
+        <a href="/logout" class="admin-button" style="background-color: #dc3545;">Logout</a>
+    </div>
+
+    <script>
+        // Function to load faculty list
+        function loadFacultyList() {
+            fetch('/get-faculty')
+                .then(response => response.json())
+                .then(data => {
+                    const facultySelect = document.getElementById('facultySelect');
+                    const editFacultySelect = document.getElementById('editFacultySelect');
+                    const filterFaculty = document.getElementById('filterFaculty');
+                    const options = '<option value="">Select Faculty</option>' + 
+                        data.map(faculty => `
+                            <option value="${faculty.id}">${faculty.name}</option>
+                        `).join('');
+                    
+                    facultySelect.innerHTML = options;
+                    editFacultySelect.innerHTML = options;
+                    filterFaculty.innerHTML = '<option value="">All Faculty</option>' + 
+                        data.map(faculty => `
+                            <option value="${faculty.id}">${faculty.name}</option>
+                        `).join('');
+                });
+        }
+
+        // Function to add new faculty manually
+        function addFaculty(event) {
+            event.preventDefault();
+            const form = event.target;
+            const facultyName = form.faculty_name.value;
+
+            fetch('/add-faculty', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `faculty_name=${encodeURIComponent(facultyName)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Faculty added successfully!');
+                    form.reset();
+                    loadFacultyList();
+                } else {
+                    alert('Error adding faculty: ' + data.error);
+                }
+            });
+
+            return false;
+        }
+
+        // Function to handle CSV upload
+        function uploadCSV(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const statusDiv = document.getElementById('uploadStatus');
+            
+            statusDiv.innerHTML = '<div class="info">Uploading file...</div>';
+            
+            fetch('/bulk-upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let message = `<div class="success">${data.message}</div>`;
+                    if (data.errors && data.errors.length > 0) {
+                        message += '<div class="error"><strong>Errors:</strong><ul>';
+                        data.errors.forEach(error => {
+                            message += `<li>${error}</li>`;
+                        });
+                        message += '</ul></div>';
+                    }
+                    statusDiv.innerHTML = message;
+                    loadSchedules(); // Refresh the schedules table
+                } else {
+                    statusDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                statusDiv.innerHTML = '<div class="error">Error uploading file</div>';
+            });
+            
+            form.reset();
+            return false;
+        }
+
+        // Function to load all schedules
+        function loadSchedules() {
+            const facultyFilter = document.getElementById('filterFaculty').value;
+            const dayFilter = document.getElementById('filterDay').value;
+            
+            fetch('/get-schedules' + 
+                  (facultyFilter ? `?faculty_id=${facultyFilter}` : '') +
+                  (dayFilter ? `${facultyFilter ? '&' : '?'}day=${dayFilter}` : ''))
+                .then(response => response.json())
+                .then(schedules => {
+                    const tbody = document.querySelector('#scheduleTable tbody');
+                    tbody.innerHTML = '';
+                    
+                    schedules.forEach(schedule => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${schedule.faculty_name}</td>
+                                <td>${schedule.day}</td>
+                                <td>${schedule.start_time}</td>
+                                <td>${schedule.end_time}</td>
+                                <td>${schedule.room}</td>
+                                <td>${schedule.is_temporary ? 'Temporary' : 'Permanent'}</td>
+                                <td class="${schedule.is_busy ? 'status-busy' : 'status-available'}">
+                                    ${schedule.is_busy ? 'Busy' : 'Available'}
+                                </td>
+                                <td>
+                                    <button onclick="editSchedule(${schedule.id})" 
+                                            class="btn btn-edit">Edit</button>
+                                    <button onclick="deleteSchedule(${schedule.id})" 
+                                            class="btn btn-delete">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                });
+        }
+
+        // Function to load deleted schedules
+        function loadDeletedSchedules() {
+            fetch('/get-deleted-schedules')
+                .then(response => response.json())
+                .then(schedules => {
+                    if (Array.isArray(schedules)) {  // Check if schedules is an array
+                        const tbody = document.querySelector('#deletedSchedulesTable tbody');
+                        tbody.innerHTML = '';
+                        
+                        schedules.forEach(schedule => {
+                            const deletedDate = new Date(schedule.deleted_at).toLocaleString();
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${schedule.faculty_name}</td>
+                                    <td>${schedule.day}</td>
+                                    <td>${schedule.start_time}</td>
+                                    <td>${schedule.end_time}</td>
+                                    <td>${schedule.room}</td>
+                                    <td>${deletedDate}</td>
+                                    <td>
+                                        <button onclick="restoreSchedule(${schedule.id})" 
+                                                class="btn btn-restore">Restore</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        console.error('Received invalid data format:', schedules);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading deleted schedules:', error);
+                });
+        }
+
+        // Function to edit schedule
+        function editSchedule(scheduleId) {
+            fetch(`/get-schedule/${scheduleId}`)
+                .then(response => response.json())
+                .then(schedule => {
+                    document.getElementById('editScheduleId').value = schedule.id;
+                    document.getElementById('editFacultySelect').value = schedule.faculty_id;
+                    document.getElementById('editDay').value = schedule.day;
+                    document.getElementById('editStartTime').value = schedule.start_time;
+                    document.getElementById('editEndTime').value = schedule.end_time;
+                    document.getElementById('editRoom').value = schedule.room;
+                    document.getElementById('editIsTemporary').checked = schedule.is_temporary;
+                    if (schedule.is_temporary && schedule.valid_until) {
+                        document.getElementById('editValidUntilDate').value = schedule.valid_until;
+                        document.getElementById('editValidUntil').style.display = 'block';
+                    }
+                    document.getElementById('editModal').style.display = 'block';
+                });
+        }
+
+        // Function to update schedule
+        function updateSchedule(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const scheduleId = document.getElementById('editScheduleId').value;
+            
+            // Add is_temporary as boolean string
+            const isTemporary = document.getElementById('editIsTemporary').checked;
+            formData.set('is_temporary', isTemporary.toString());
+            
+            // Only include valid_until if it's a temporary schedule
+            if (isTemporary) {
+                const validUntil = document.getElementById('editValidUntilDate').value;
+                if (validUntil) {
+                    formData.set('valid_until', validUntil);
+                }
+            }
+            
+            fetch(`/update-schedule/${scheduleId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Schedule updated successfully');
+                    closeEditModal();
+                    loadSchedules();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+
+            return false;
+        }
+
+        // Function to close edit modal
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            document.getElementById('editScheduleForm').reset();
+        }
+
+        // Function to delete schedule
+        function deleteSchedule(scheduleId) {
+            if (confirm('Are you sure you want to delete this schedule?')) {
+                fetch(`/delete-schedule/${scheduleId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Schedule deleted successfully!');
+                        loadSchedules();
+                        loadDeletedSchedules();
+                    } else {
+                        alert('Error deleting schedule: ' + data.error);
+                    }
+                });
+            }
+        }
+
+        // Function to restore schedule
+        function restoreSchedule(deletedId) {
+            if (confirm('Are you sure you want to restore this schedule?')) {
+                fetch(`/restore-schedule/${deletedId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Schedule restored successfully!');
+                        loadSchedules();
+                        loadDeletedSchedules();
+                    } else {
+                        alert('Error restoring schedule: ' + data.error);
+                    }
+                });
+            }
+        }
+
+        // Function to add schedule
+        function addSchedule(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            fetch('/save-schedule', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Schedule added successfully!');
+                    form.reset();
+                    loadSchedules();
+                } else {
+                    alert('Error adding schedule: ' + data.error);
+                }
+            });
+
+            return false;
+        }
+
+        // Function to filter schedules
+        function filterSchedules() {
+            loadSchedules();
+        }
+
+        // Function to download sample CSV
+        function downloadSampleCSV() {
+            const csvContent = "name,day,start_time,end_time,room\n" +
+                              "John Doe,Monday,09:00,10:30,Room 101\n" +
+                              "Jane Smith,Tuesday,14:00,15:30,Room 202";
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sample_schedule.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Event listeners for temporary checkboxes
+        document.getElementById('isTemporary').addEventListener('change', function() {
+            document.getElementById('validUntil').style.display = this.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('editIsTemporary').addEventListener('change', function() {
+            document.getElementById('editValidUntil').style.display = this.checked ? 'block' : 'none';
+        });
+
+        // Load everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFacultyList();
+            loadSchedules();
+            loadDeletedSchedules();
+            
+            // Update faculty select in search form
+            fetch('/get-faculty')
+                .then(response => response.json())
+                .then(data => {
+                    const searchSelect = document.getElementById('searchFacultySelect');
+                    searchSelect.innerHTML = '<option value="">Select Faculty</option>' + 
+                        data.map(faculty => `
+                            <option value="${faculty.name}">${faculty.name}</option>
+                        `).join('');
+                });
+        });
+
+        // Update the searchFaculty function
+        function searchFaculty(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+
+            // Debug log
+            console.log('Searching with:', {
+                faculty: formData.get('faculty_name'),
+                day: formData.get('day'),
+                start: formData.get('start_time'),
+                end: formData.get('end_time')
+            });
+
+            fetch('/search-faculty', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('searchResults');
+                if (data.available) {
+                    resultsDiv.innerHTML = `
+                        <div class="success">
+                            ${data.message}
+                        </div>`;
+                } else {
+                    let html = `<div class="error">${data.message}</div>`;
+                    if (data.free_slots && data.free_slots.length > 0) {
+                        html += '<div class="schedule-list"><h4>Current Schedule:</h4><ul>';
+                        data.free_slots.forEach(slot => {
+                            html += `<li>${slot.start_time} - ${slot.end_time} (${slot.room})</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+                    resultsDiv.innerHTML = html;
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                document.getElementById('searchResults').innerHTML = 
+                    '<div class="error">Error performing search</div>';
+            });
+
+            return false;
+        }
+    </script>
+    
+</body>
+</html>

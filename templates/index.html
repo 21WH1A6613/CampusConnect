@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Campus Connect</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <marquee class="college-name">Welcome to BVRITH Campus Connect</marquee>
+        
+        <h1>Campus Connect</h1>
+        
+        <div class="search-panel">
+            <h2>Find Faculty</h2>
+            <form id="searchForm" onsubmit="searchFaculty(event)">
+                <div class="form-group">
+                    <label for="faculty_name">Faculty Name:</label>
+                    <input type="text" class="form-control" id="faculty_name" name="faculty_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="day">Day:</label>
+                    <select class="form-control" id="day" name="day" required>
+                        <option value="">Select Day</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="start_time">Start Time:</label>
+                    <input type="time" class="form-control" id="start_time" name="start_time" required>
+                </div>
+                <div class="form-group">
+                    <label for="end_time">End Time:</label>
+                    <input type="time" class="form-control" id="end_time" name="end_time" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </form>
+            
+            <div id="results"></div>
+        </div>
+        
+        <a href="/admin-login" class="admin-button">Admin Panel</a>
+        {% if session.get('admin') %}
+        <a href="{{ url_for('get_deleted_schedules') }}" class="btn btn-info">View Deleted Schedules</a>
+        {% endif %}
+    </div>
+    <script>
+    document.getElementById('faculty_search').addEventListener('input', function() {
+        let query = this.value;
+        
+        // Show the results when typing
+        if (query.length > 2) {  // Trigger after at least 3 characters
+            fetch(`/search-faculty?faculty_search=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Handle the data returned from the server
+                    let resultsContainer = document.getElementById('results');
+                    resultsContainer.innerHTML = '';
+                    data.faculty_results.forEach(faculty => {
+                        resultsContainer.innerHTML += `<p>${faculty.name}</p>`;
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    });
+</script>
+
+    <script>
+        function searchFaculty(event) {
+            event.preventDefault();
+            
+            const faculty_name = document.getElementById('faculty_name').value;
+            const day = document.getElementById('day').value;
+            const start_time = document.getElementById('start_time').value;
+            const end_time = document.getElementById('end_time').value;
+            
+            // Debug log
+            console.log('Sending data:', { faculty_name, day, start_time, end_time });
+
+            fetch('/search-faculty', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    faculty_name: faculty_name,
+                    day: day,
+                    start_time: start_time,
+                    end_time: end_time
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '';
+                
+                if (data.error) {
+                    resultsDiv.innerHTML = `<p class="error">${data.error}</p>`;
+                } else if (data.available) {
+                    resultsDiv.innerHTML = `<p class="success">Faculty is available during the requested time slot.</p>`;
+                } else {
+                    let message = `<p class="error">Faculty is not available during the requested time slot.</p>`;
+                    if (data.free_slots && data.free_slots.length > 0) {
+                        const slots = data.free_slots.map(slot => 
+                            `<li>${slot.start_time} to ${slot.end_time}</li>`
+                        ).join('');
+                        message += `
+                            <p>Available time slots for this faculty on ${day}:</p>
+                            <ul class="free-slots-list">${slots}</ul>
+                        `;
+                    }
+                    resultsDiv.innerHTML = message;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('results').innerHTML = 
+                    `<p class="error">An error occurred while searching. Please try again.</p>`;
+            });
+        }
+
+        function restoreSchedule(deletedId) {
+            if (!confirm('Are you sure you want to restore this schedule?')) {
+                return;
+            }
+            
+            fetch(`/restore-schedule/${deletedId}`, {
+                method: 'POST'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to restore schedule');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('Schedule restored successfully');
+                    location.reload(); // Or update the UI more elegantly
+                } else {
+                    alert(data.error || 'Failed to restore schedule');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while restoring the schedule');
+            });
+        }
+    </script>
+</body>
+</html>
