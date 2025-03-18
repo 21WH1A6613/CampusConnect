@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Admin Panel - Deleted Schedules</h2>
+    
+    {% if deleted_schedules %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Faculty Name</th>
+                <th>Day</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Room</th>
+                <th>Deleted At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for schedule in deleted_schedules %}
+            <tr>
+                <td>{{ schedule.faculty_name }}</td>
+                <td>{{ schedule.day }}</td>
+                <td>{{ schedule.start_time.strftime('%I:%M %p') }}</td>
+                <td>{{ schedule.end_time.strftime('%I:%M %p') }}</td>
+                <td>{{ schedule.room }}</td>
+                <td>{{ schedule.deleted_at.strftime('%Y-%m-%d %I:%M %p') }}</td>
+                <td>
+                    <button onclick="restoreSchedule({{ schedule.id }})" class="btn btn-success btn-sm">
+                        Restore
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No deleted schedules found.</p>
+    {% endif %}
+    
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">Back to Admin Dashboard</a>
+</div>
+
+<script>
+    function restoreSchedule(deletedId) {
+        if (!confirm('Are you sure you want to restore this schedule?')) {
+            return;
+        }
+        
+        fetch(`/admin/restore-schedule/${deletedId}`, {
+            method: 'POST'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to restore schedule');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert('Schedule restored successfully');
+                location.reload();
+            } else {
+                alert(data.error || 'Failed to restore schedule');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while restoring the schedule');
+        });
+    }
+</script>
+{% endblock %} 
