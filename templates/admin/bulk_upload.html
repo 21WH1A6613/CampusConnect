@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Bulk Upload Schedules</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">CSV Format Requirements</h5>
+            <p>Your CSV file should have the following columns:</p>
+            <ul>
+                <li>faculty_name</li>
+                <li>day (Monday, Tuesday, etc.)</li>
+                <li>start_time (HH:MM format)</li>
+                <li>end_time (HH:MM format)</li>
+                <li>room</li>
+            </ul>
+        </div>
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="file">Select CSV File:</label>
+            <input type="file" class="form-control-file" id="file" name="file" accept=".csv" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Upload</button>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+    
+    <div class="mt-4">
+        <h4>Sample CSV Format:</h4>
+        <pre>faculty_name,day,start_time,end_time,room
+John Doe,Monday,09:00,10:00,Room 101
+Jane Smith,Tuesday,14:00,15:00,Room 202</pre>
+    </div>
+</div>
+{% endblock %} 
